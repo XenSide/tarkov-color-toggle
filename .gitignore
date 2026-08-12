@@ -1,2 +1,6 @@
+# Runtime state, per-user - never ship these
 toggle.log
+profiles.json
+state.txt
+
 *.pdb
