@@ -587,8 +587,25 @@ namespace TarkovColor
         {
             Profile p = new Profile();
             p.Name = UniqueName("New profile");
+            p.AudioFile = DefaultAudioPreset();
             _config.Profiles.Add(p);
             ReloadList(_config.Profiles.Count - 1);
+        }
+
+        /// <summary>
+        /// New profiles start with an EQ rather than none: leaving the field empty is the
+        /// easiest way to end up with a profile that silently does nothing to the sound.
+        /// </summary>
+        private static string DefaultAudioPreset()
+        {
+            string[] presets = AudioProfile.ListPresets();
+            if (presets.Length == 0) return null;
+
+            foreach (string f in presets)
+            {
+                if (string.Equals(f, "tarkov-full.txt", StringComparison.OrdinalIgnoreCase)) return f;
+            }
+            return presets[0];
         }
 
         private void DuplicateProfile()
