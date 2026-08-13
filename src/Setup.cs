@@ -70,7 +70,9 @@ namespace TarkovColor
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // Tls12
                 using (WebClient wc = new WebClient())
                 {
-                    wc.Headers.Add("User-Agent", "Mozilla/5.0");
+                    // Deliberately no User-Agent. SourceForge answers 403 to requests that
+                    // claim to be a browser but are not one; the header-less request is
+                    // allowed through. Adding a "realistic" UA here breaks the download.
                     wc.DownloadFile(ApoInstallerUrl, installer);
                 }
 
@@ -121,7 +123,7 @@ namespace TarkovColor
 
                 using (WebClient wc = new WebClient())
                 {
-                    wc.Headers.Add("User-Agent", "Mozilla/5.0");
+                    // No User-Agent here either, for the same reason as the APO download.
                     wc.DownloadFile(LoudMaxZipUrl, tempZip);
                 }
 
