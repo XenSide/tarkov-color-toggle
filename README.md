@@ -91,12 +91,19 @@ executable. The app copies the selected one into APO's own config folder and add
 - Plugin parameters are stored as readable text on the `VSTPlugin:` line, so a preset
   using LoudMax can be shared as-is; the recipient only needs the plugin installed.
 
-The shipped Tarkov presets cut rather than boost, and use no compressor or limiter. The
-reasoning: a limiter is usually added to cap what a boost raises, and that combination
-raises average loudness, which is what makes long sessions tiring. Turning the loud
-things down and then raising the volume lifts quiet cues without that cost. Cutting low
-frequencies also uncovers the midrange rather than just quietening things, because low
-frequencies mask higher ones far more than the reverse.
+The release ships one preset, `tarkov-full.txt`. Its frequency bands come from a published
+spectrum analysis of the game's audio, and it includes the LoudMax limiter at the settings
+that analysis specifies. If LoudMax is not installed, Equalizer APO skips that line and
+still applies the EQ, so the preset degrades rather than failing.
+
+Alternative presets live in the `audio` folder of this repository rather than in the
+release: variants that cut around 3 kHz where gunshots bite, that drop the 10 kHz lift,
+that add a low shelf for bass-heavy headphones, and the EQ without the limiter. They exist
+because the interesting question is not which is loudest but which stays comfortable over
+a long session: a limiter is normally added to cap what a boost raises, and that pairing
+lifts the average level, which is what causes listening fatigue rather than the peaks.
+Cutting low frequencies also uncovers the midrange rather than just quietening things,
+since low frequencies mask higher ones far more than the reverse.
 
 ## Limitations
 
