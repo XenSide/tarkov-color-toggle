@@ -24,7 +24,8 @@ namespace TarkovColor
         private Button _btnAdd, _btnDup, _btnDel, _btnNeutral, _btnClearHotkey, _btnClearReset, _btnBrowse;
         private Button _btnRuleAdd, _btnRuleEdit, _btnRuleDel;
         private TextBox _txtName, _txtHotkey, _txtResetHotkey;
-        private ComboBox _cmbIcc;
+        private ComboBox _cmbIcc, _cmbAudio;
+        private Label _lblAudioNote;
         private TrackBar _tbGamma, _tbContrast, _tbBrightness, _tbSaturation;
         private Label _lblGamma, _lblContrast, _lblBrightness, _lblSaturation;
 
@@ -132,6 +133,23 @@ namespace TarkovColor
 
             _btnBrowse = MakeButton("Add .icc...", x + 334, y - 1, 90);
             _btnBrowse.Click += delegate { BrowseIcc(); };
+            y += 32;
+
+            Controls.Add(MakeLabel("Audio EQ", x, y + 3, 70));
+            _cmbAudio = new ComboBox();
+            _cmbAudio.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cmbAudio.SetBounds(x + 78, y, 250, 22);
+            _cmbAudio.SelectedIndexChanged += delegate
+            {
+                if (_loading || Current == null) return;
+                Current.AudioFile = _cmbAudio.SelectedIndex <= 0 ? null : (string)_cmbAudio.SelectedItem;
+                try { AudioProfile.Apply(Current); }
+                catch (Exception ex) { Config.Log("Audio preview failed: " + ex.Message); }
+            };
+            Controls.Add(_cmbAudio);
+
+            _lblAudioNote = MakeLabel("", x + 334, y + 3, 200);
+            _lblAudioNote.ForeColor = SystemColors.GrayText;
             y += 38;
 
             _tbGamma = MakeSlider(x, ref y, "Gamma", 30, 300, out _lblGamma);
@@ -442,6 +460,43 @@ namespace TarkovColor
             _cmbIcc.SelectedIndex = sel;
         }
 
+        private void RefreshAudioCombo(Profile p)
+        {
+            _cmbAudio.Items.Clear();
+            _cmbAudio.Items.Add("(none)");
+
+            string[] presets = AudioProfile.ListPresets();
+            foreach (string f in presets) _cmbAudio.Items.Add(f);
+
+            if (p != null && !string.IsNullOrEmpty(p.AudioFile))
+            {
+                bool known = false;
+                foreach (string f in presets)
+                {
+                    if (string.Equals(f, p.AudioFile, StringComparison.OrdinalIgnoreCase)) { known = true; break; }
+                }
+                if (!known) _cmbAudio.Items.Add(p.AudioFile);
+            }
+
+            int sel = 0;
+            if (p != null && !string.IsNullOrEmpty(p.AudioFile))
+            {
+                for (int i = 1; i < _cmbAudio.Items.Count; i++)
+                {
+                    if (string.Equals((string)_cmbAudio.Items[i], p.AudioFile, StringComparison.OrdinalIgnoreCase))
+                    {
+                        sel = i;
+                        break;
+                    }
+                }
+            }
+            _cmbAudio.SelectedIndex = sel;
+
+            bool apo = AudioProfile.IsAvailable;
+            _cmbAudio.Enabled = apo && p != null;
+            _lblAudioNote.Text = apo ? "" : "Equalizer APO not installed";
+        }
+
         private void LoadCurrentIntoControls()
         {
             _loading = true;
@@ -450,6 +505,7 @@ namespace TarkovColor
 
             _txtName.Enabled = has;
             _cmbIcc.Enabled = has;
+            _cmbAudio.Enabled = has && AudioProfile.IsAvailable;
             _btnBrowse.Enabled = has;
             _tbGamma.Enabled = has;
             _tbContrast.Enabled = has;
@@ -466,12 +522,14 @@ namespace TarkovColor
                 _txtName.Text = "";
                 _txtHotkey.Text = "";
                 _cmbIcc.Items.Clear();
+                _cmbAudio.Items.Clear();
                 _loading = false;
                 return;
             }
 
             _txtName.Text = p.Name;
             RefreshIccCombo(p);
+            RefreshAudioCombo(p);
             _tbGamma.Value = ClampInt((int)Math.Round(p.Gamma * 100), _tbGamma.Minimum, _tbGamma.Maximum);
             _tbContrast.Value = ClampInt((int)Math.Round(p.Contrast * 100), _tbContrast.Minimum, _tbContrast.Maximum);
             _tbBrightness.Value = ClampInt((int)Math.Round(p.Brightness * 100), _tbBrightness.Minimum, _tbBrightness.Maximum);

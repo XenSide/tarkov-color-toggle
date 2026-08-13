@@ -37,6 +37,8 @@ namespace TarkovColor
         private Config _config;
         private readonly List<int> _registered = new List<int>();
         private ConfigForm _openConfig;
+        private System.IO.FileSystemWatcher _apoWatcher;
+        private System.Windows.Forms.Timer _apoDebounce;
 
         public TrayApp()
         {
@@ -68,6 +70,52 @@ namespace TarkovColor
             Saturation.Initialize();
             RegisterHotkeys();
             ReapplyActive();
+            WatchApoConfig();
+        }
+
+        /// <summary>
+        /// APO's Editor rewrites config.txt in full when it saves, which drops our include
+        /// line and silently freezes the EQ until the next profile switch. This restores it
+        /// as soon as that happens.
+        ///
+        /// FileSystemWatcher wraps ReadDirectoryChangesW, so this is a kernel-pushed
+        /// notification rather than a polling loop.
+        /// </summary>
+        private void WatchApoConfig()
+        {
+            string dir = AudioProfile.ConfigDir;
+            if (dir == null) return;
+
+            try
+            {
+                // A save arrives as several write events; coalesce them and let the Editor
+                // finish writing before reading the file back.
+                _apoDebounce = new System.Windows.Forms.Timer();
+                _apoDebounce.Interval = 700;
+                _apoDebounce.Tick += delegate
+                {
+                    _apoDebounce.Stop();
+                    try { AudioProfile.EnsureIncludeNow(); }
+                    catch (Exception ex) { Config.Log("Include restore failed: " + ex.Message); }
+                };
+
+                _apoWatcher = new System.IO.FileSystemWatcher(dir, "config.txt");
+                _apoWatcher.NotifyFilter = System.IO.NotifyFilters.LastWrite | System.IO.NotifyFilters.Size;
+                System.IO.FileSystemEventHandler onChange = delegate
+                {
+                    // Marshal onto the UI thread; the watcher raises events on a pool thread.
+                    if (IsDisposed || !IsHandleCreated) return;
+                    try { BeginInvoke((MethodInvoker)delegate { _apoDebounce.Stop(); _apoDebounce.Start(); }); }
+                    catch { }
+                };
+                _apoWatcher.Changed += onChange;
+                _apoWatcher.Created += onChange;
+                _apoWatcher.EnableRaisingEvents = true;
+            }
+            catch (Exception ex)
+            {
+                Config.Log("Could not watch the Equalizer APO config: " + ex.Message);
+            }
         }
 
         protected override void SetVisibleCore(bool value)
@@ -306,6 +354,8 @@ namespace TarkovColor
             if (disposing)
             {
                 UnregisterHotkeys();
+                if (_apoWatcher != null) { _apoWatcher.EnableRaisingEvents = false; _apoWatcher.Dispose(); }
+                if (_apoDebounce != null) _apoDebounce.Dispose();
                 if (_icon != null) { _icon.Visible = false; _icon.Dispose(); }
             }
             base.Dispose(disposing);

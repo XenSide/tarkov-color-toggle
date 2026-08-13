@@ -1,0 +1,15 @@
+# Tarkov - EQ exactly as published by Stereo Bites
+# ("How to Hear Footsteps in Tarkov: Best EQ Settings")
+#
+# These four filters are his values unchanged, derived from a spectrum analysis
+# of the game and validated by ear against real gameplay. Nothing is added here,
+# so this is the honest baseline to judge everything else against.
+#
+# His chain also includes a LoudMax limiter, which is NOT reproduced here: he adds
+# it specifically to cap what his 10 kHz lift raises. See tarkov-hd58x.txt for the
+# variant with headphone compensation.
+
+Filter: ON HPQ Fc 100 Hz Q 0.8
+Filter: ON PK Fc 550 Hz Gain -2 dB Q 1.1
+Filter: ON PK Fc 6000 Hz Gain -3 dB Q 5
+Filter: ON HS Fc 10000 Hz Gain 3 dB

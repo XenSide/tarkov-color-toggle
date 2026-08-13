@@ -165,12 +165,43 @@ namespace TarkovColor
             }
 
             RelaxGammaRange();
+            SetUpAudioDependencies();
 
             // Start the tray through the scheduled task so it runs unelevated: an elevated
             // tray window would have messages from the (limited) game tasks blocked by UIPI.
             RunProcess(Schtasks, "/run /tn \"" + TaskTray + "\"", false);
 
             Config.Log("Installed for user=" + user);
+        }
+
+        /// <summary>
+        /// Offers the optional audio pieces. Runs inside the elevated install so it can write
+        /// into Equalizer APO's plugin folder, which is not user-writable. Everything here is
+        /// optional: the display side works regardless.
+        /// </summary>
+        private static void SetUpAudioDependencies()
+        {
+            if (!Setup.ApoInstalled)
+            {
+                Setup.OfferApo(null);
+                return;
+            }
+
+            if (Setup.LoudMaxInstalled || !Setup.AnyPresetNeedsLoudMax()) return;
+
+            DialogResult r = MessageBox.Show(
+                "One of the included EQ presets uses the LoudMax limiter plugin, which is not installed.\n\n"
+                + "Download it now from the author's site?\n\n"
+                + "It is free, and it is fetched from loudmax.blogspot.com rather than bundled here, "
+                + "because its author does not permit redistribution.\n\n"
+                + "Presets that do not use it work either way.",
+                "Display Profile Switcher - Audio setup",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (r != DialogResult.Yes) return;
+
+            if (Setup.InstallLoudMax(null))
+                MessageBox.Show("LoudMax installed.", "Display Profile Switcher");
         }
 
         /// <summary>
@@ -228,6 +259,7 @@ namespace TarkovColor
             DeleteTask(LegacyTaskOff);
 
             RestoreGammaRange();
+            AudioProfile.Remove();
 
             Config.Log("Uninstalled");
         }

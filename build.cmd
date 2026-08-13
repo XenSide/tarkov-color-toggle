@@ -7,6 +7,8 @@ set CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
   /reference:System.Drawing.dll ^
   /reference:System.Management.dll ^
   /reference:System.Runtime.Serialization.dll ^
+  /reference:System.IO.Compression.FileSystem.dll ^
+  /reference:System.IO.Compression.dll ^
   "%~dp0src\*.cs"
 
 if errorlevel 1 (

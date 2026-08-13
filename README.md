@@ -15,6 +15,7 @@ done with APIs that ship with Windows.
 | Gamma, contrast, brightness | Written into the GPU's gamma ramp, so it applies even in exclusive fullscreen |
 | Saturation | Desktop-wide colour matrix via the Magnification API |
 | ICC base curve | Optional. The `vcgt` calibration curve of an `.icc` file is used as the starting point, then the sliders adjust it |
+| Audio EQ | Optional. Swaps an [Equalizer APO](https://equalizerapo.com/) preset from the `audio` folder along with the display settings |
 
 Saturation genuinely cannot be done with a gamma ramp: a gamma ramp is a per-channel 1D
 lookup table, and saturation requires mixing channels. That is why it goes through a
@@ -57,6 +58,41 @@ Two details worth knowing, both of which cost real debugging time to find:
   returns success but nothing changes. The installer sets `GdiIcmGammaRange` to widen the
   permitted range, and restores the previous value on uninstall.
 
+## Audio EQ (optional)
+
+If [Equalizer APO](https://equalizerapo.com/) is installed, each profile can also carry
+an EQ preset, so sound and display switch together when the game starts. Without it the
+field is simply disabled and everything else works normally.
+
+Setup takes care of the pieces it can. If Equalizer APO is missing it points you at the
+download (its own installer asks which output device to attach to, and needs a reboot).
+If a preset uses the LoudMax limiter and that plugin is missing, setup offers to fetch it.
+
+Neither is bundled here, deliberately: Equalizer APO is GPLv2, and LoudMax is freeware
+whose author does not permit redistribution. Both are downloaded from their own official
+sites, so they come from their authors rather than from this project.
+
+Presets are plain Equalizer APO config files in the `audio` folder next to the
+executable. The app copies the selected one into APO's own config folder and adds an
+`Include:` line pointing at it. Two details that are easy to get wrong:
+
+- The active file **must** live inside APO's config folder. APO loads a file given by an
+  absolute path elsewhere, but does not watch it, so later edits are silently ignored.
+- That folder is user-writable by design, so switching presets never needs admin rights.
+- APO's Editor rewrites `config.txt` wholesale when it saves, dropping the `Include:`
+  line and silently freezing the EQ. The tray watches `config.txt` and puts the line back
+  within about a second, via `ReadDirectoryChangesW` rather than any polling. Even so,
+  edit preset files directly rather than opening `config.txt` in the Editor.
+- Plugin parameters are stored as readable text on the `VSTPlugin:` line, so a preset
+  using LoudMax can be shared as-is; the recipient only needs the plugin installed.
+
+The shipped Tarkov presets cut rather than boost, and use no compressor or limiter. The
+reasoning: a limiter is usually added to cap what a boost raises, and that combination
+raises average loudness, which is what makes long sessions tiring. Turning the loud
+things down and then raising the volume lifts quiet cues without that cost. Cutting low
+frequencies also uncovers the midrange rather than just quietening things, because low
+frequencies mask higher ones far more than the reverse.
+
 ## Limitations
 
 - Gamma, contrast and brightness apply to the **primary monitor** only. Saturation is
@@ -79,4 +115,8 @@ build.cmd
 
 The app keeps `profiles.json` (your profiles and rules), `state.txt` (the active profile)
 and `toggle.log` (a history of what was applied, for troubleshooting) next to the
-executable.
+executable, plus an `audio` folder holding the EQ presets.
+
+Frequency choices in the Tarkov presets follow a published spectrum analysis of the
+game's audio by [Stereo Bites](https://www.youtube.com/watch?v=Y-qZJ2g1oK4). The gain
+staging deliberately differs, as described above.
