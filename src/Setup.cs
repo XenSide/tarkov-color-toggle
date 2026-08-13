@@ -43,18 +43,63 @@ namespace TarkovColor
             }
         }
 
-        /// <summary>Points the user at Equalizer APO's own installer; it needs device selection and a reboot.</summary>
+        /// <summary>Always resolves to the current release rather than a pinned version.</summary>
+        private const string ApoInstallerUrl =
+            "https://sourceforge.net/projects/equalizerapo/files/latest/download";
+
+        /// <summary>
+        /// Downloads Equalizer APO's own installer and runs it. The last steps cannot be
+        /// automated: its installer asks which output device to attach to, and a reboot is
+        /// required before the driver is active.
+        /// </summary>
         public static void OfferApo(IWin32Window owner)
         {
             DialogResult r = MessageBox.Show(owner,
-                "Equalizer APO is not installed.\n\n"
-                + "It is what makes the audio side work; the display side works fine without it.\n\n"
-                + "Open its download page? Its installer asks which output device to attach to "
-                + "(pick your headphones) and needs a reboot. Run this setup again afterwards.",
+                "Equalizer APO is needed for the audio side. The display side works fine without it.\n\n"
+                + "Download and run its installer now?\n\n"
+                + "Two steps cannot be done for you: it will ask which output device to attach to "
+                + "(tick your headphones), and Windows needs a reboot afterwards. "
+                + "Run this setup again once you are back.",
                 "Display Profile Switcher - Audio setup",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
-            if (r == DialogResult.Yes) OpenUrl(ApoSite);
+            if (r != DialogResult.Yes) return;
+
+            string installer = Path.Combine(Path.GetTempPath(), "EqualizerAPO-setup.exe");
+            try
+            {
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // Tls12
+                using (WebClient wc = new WebClient())
+                {
+                    wc.Headers.Add("User-Agent", "Mozilla/5.0");
+                    wc.DownloadFile(ApoInstallerUrl, installer);
+                }
+
+                if (new FileInfo(installer).Length < 1000000)
+                    throw new Exception("The downloaded file is too small to be the installer.");
+
+                Config.Log("Downloaded the Equalizer APO installer, launching it.");
+
+                ProcessStartInfo psi = new ProcessStartInfo(installer);
+                psi.UseShellExecute = true;
+                Process.Start(psi);
+
+                MessageBox.Show(owner,
+                    "The Equalizer APO installer is starting.\n\n"
+                    + "Tick your headphones in its device list, finish it, and reboot.\n"
+                    + "Then run this setup again to finish the audio side.",
+                    "Display Profile Switcher");
+            }
+            catch (Exception ex)
+            {
+                Config.Log("Equalizer APO download failed: " + ex.Message);
+                DialogResult fb = MessageBox.Show(owner,
+                    "Could not download Equalizer APO automatically:\n" + ex.Message + "\n\n"
+                    + "Open its download page instead?",
+                    "Display Profile Switcher - Audio setup",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (fb == DialogResult.Yes) OpenUrl(ApoSite);
+            }
         }
 
         /// <summary>
