@@ -78,7 +78,7 @@ namespace TarkovColor
             MaximizeBox = false;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(660, 590);
+            ClientSize = new Size(660, 604);
             Font = SystemFonts.MessageBoxFont;
 
             // --- left: profile list ---
@@ -104,7 +104,8 @@ namespace TarkovColor
             {
                 if (_loading || Current == null) return;
 
-                // Keep rules pointing at this profile in sync with the rename.
+                // Model only. Rewriting the ListBox item here would make the list steal
+                // focus on every keystroke, so the visible lists refresh on Leave instead.
                 string oldName = Current.Name;
                 Current.Name = _txtName.Text;
                 foreach (AppRule r in _config.Rules)
@@ -112,11 +113,8 @@ namespace TarkovColor
                     if (string.Equals(r.ProfileName, oldName, StringComparison.OrdinalIgnoreCase))
                         r.ProfileName = _txtName.Text;
                 }
-
-                int i = _list.SelectedIndex;
-                _list.Items[i] = _txtName.Text;
-                ReloadRules();
             };
+            _txtName.Leave += delegate { RefreshNameInLists(); };
             Controls.Add(_txtName);
             y += 32;
 
@@ -220,14 +218,14 @@ namespace TarkovColor
 
             Label hint = MakeLabel(
                 "Changes preview live on the primary monitor.\nSaturation needs the tray app running.",
-                12, 548, 440);
-            hint.Height = 34;
+                12, 556, 440);
+            hint.Height = 42;
             hint.ForeColor = SystemColors.GrayText;
             Controls.Add(hint);
 
-            Button ok = MakeButton("OK", 466, 552, 88);
+            Button ok = MakeButton("OK", 466, 560, 88);
             ok.Click += delegate { OnOk(); };
-            Button cancel = MakeButton("Cancel", 560, 552, 88);
+            Button cancel = MakeButton("Cancel", 560, 560, 88);
             cancel.Click += delegate { DialogResult = DialogResult.Cancel; Close(); };
             AcceptButton = ok;
             CancelButton = cancel;
@@ -296,6 +294,21 @@ namespace TarkovColor
             ReloadRules();
         }
 
+        /// <summary>Pushes a finished rename into the profile list and the rules list.</summary>
+        private void RefreshNameInLists()
+        {
+            if (_loading || Current == null) return;
+            int i = _list.SelectedIndex;
+            if (i >= 0 && i < _list.Items.Count && !Equals(_list.Items[i], Current.Name))
+            {
+                _loading = true;
+                _list.Items[i] = Current.Name;
+                _list.SelectedIndex = i;
+                _loading = false;
+            }
+            ReloadRules();
+        }
+
         private void ReloadRules()
         {
             if (_rules == null) return;
@@ -333,8 +346,10 @@ namespace TarkovColor
             using (RuleDialog dlg = new RuleDialog(_config, null))
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                if (RejectDuplicate(dlg.Result.ProcessName, null)) return;
                 _config.Rules.Add(dlg.Result);
                 ReloadRules();
+                SelectRuleRow(_config.Rules.Count - 1);
             }
         }
 
@@ -342,13 +357,15 @@ namespace TarkovColor
         {
             AppRule r = SelectedRule;
             if (r == null) return;
-            int idx = _rules.SelectedIndices[0];
+            int idx = _config.Rules.IndexOf(r);
 
             using (RuleDialog dlg = new RuleDialog(_config, r))
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                if (RejectDuplicate(dlg.Result.ProcessName, r)) return;
                 _config.Rules[idx] = dlg.Result;
                 ReloadRules();
+                SelectRuleRow(idx);
             }
         }
 
@@ -356,8 +373,42 @@ namespace TarkovColor
         {
             AppRule r = SelectedRule;
             if (r == null) return;
-            _config.Rules.RemoveAt(_rules.SelectedIndices[0]);
+
+            // Remove this exact entry, not "the one at that index", so the list and the
+            // model cannot get out of step.
+            int idx = _config.Rules.IndexOf(r);
+            if (idx < 0) return;
+            _config.Rules.RemoveAt(idx);
             ReloadRules();
+            SelectRuleRow(Math.Min(idx, _config.Rules.Count - 1));
+        }
+
+        /// <summary>
+        /// One executable can only map to one profile: two rules for the same process would
+        /// be ambiguous, and the watcher would only ever honour the first.
+        /// </summary>
+        private bool RejectDuplicate(string processName, AppRule ignore)
+        {
+            foreach (AppRule other in _config.Rules)
+            {
+                if (other == ignore) continue;
+                if (string.Equals(other.ProcessName, processName, StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show(
+                        processName + " is already mapped to \"" + other.ProfileName + "\".\n\n"
+                        + "Edit that entry instead, or remove it first.",
+                        "Display Profile Switcher", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void SelectRuleRow(int index)
+        {
+            if (index < 0 || index >= _rules.Items.Count) return;
+            _rules.Items[index].Selected = true;
+            _rules.Items[index].Focused = true;
         }
 
         private void RefreshIccCombo(Profile p)

@@ -27,8 +27,30 @@ namespace TarkovColor
         private static string KeyName(uint key)
         {
             Keys k = (Keys)key;
+
+            // Digits and numpad have unhelpful enum names.
+            if (k >= Keys.D0 && k <= Keys.D9) return ((char)('0' + (k - Keys.D0))).ToString();
+            if (k >= Keys.NumPad0 && k <= Keys.NumPad9) return "Num" + (k - Keys.NumPad0);
+
             switch (k)
             {
+                // The enum names for these read as nonsense in a hotkey box.
+                case Keys.Next: return "PageDown";
+                case Keys.Prior: return "PageUp";
+                case Keys.Return: return "Enter";
+                case Keys.Escape: return "Esc";
+                case Keys.Back: return "Backspace";
+                case Keys.Capital: return "CapsLock";
+                case Keys.Snapshot: return "PrintScreen";
+                case Keys.Scroll: return "ScrollLock";
+                case Keys.Delete: return "Del";
+                case Keys.Insert: return "Ins";
+                case Keys.Multiply: return "Num*";
+                case Keys.Add: return "Num+";
+                case Keys.Subtract: return "Num-";
+                case Keys.Divide: return "Num/";
+                case Keys.Decimal: return "Num.";
+
                 case Keys.Oemcomma: return ",";
                 case Keys.OemPeriod: return ".";
                 case Keys.OemMinus: return "-";

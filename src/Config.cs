@@ -127,6 +127,18 @@ namespace TarkovColor
             if (Rules.Count == 0 && !string.IsNullOrEmpty(TarkovProfile))
                 Rules.Add(new AppRule("EscapeFromTarkov.exe", TarkovProfile));
             TarkovProfile = null;
+
+            // One executable maps to one profile; drop any duplicates a previous build allowed.
+            Dictionary<string, bool> seen = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            List<AppRule> unique = new List<AppRule>();
+            foreach (AppRule r in Rules)
+            {
+                string key = r.ProcessName == null ? "" : r.ProcessName.Trim();
+                if (key.Length == 0 || seen.ContainsKey(key)) continue;
+                seen[key] = true;
+                unique.Add(r);
+            }
+            Rules = unique;
         }
 
         public static string AppDir
