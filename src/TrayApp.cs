@@ -251,6 +251,12 @@ namespace TarkovColor
             settings.Click += delegate { OpenSettings(); };
             menu.Items.Add(settings);
 
+            // Reachable after the fact: Equalizer APO needs a reboot, by which point the
+            // installer has long finished, so the audio side often has to be resumed later.
+            ToolStripMenuItem audio = new ToolStripMenuItem("Audio setup...");
+            audio.Click += delegate { RunAudioSetup(); };
+            menu.Items.Add(audio);
+
             ToolStripMenuItem exit = new ToolStripMenuItem("Exit");
             exit.Click += delegate { ExitApp(); };
             menu.Items.Add(exit);
@@ -310,6 +316,26 @@ namespace TarkovColor
             _openConfig.Activate();
             _openConfig.BringToFront();
             SetForegroundWindow(_openConfig.Handle);
+        }
+
+        private void RunAudioSetup()
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo(
+                    System.Reflection.Assembly.GetExecutingAssembly().Location, "-AudioSetup");
+                psi.UseShellExecute = true;
+                psi.Verb = "runas";
+                Process.Start(psi);
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                Config.Log("Audio setup elevation declined.");
+            }
+            catch (Exception ex)
+            {
+                Config.Log("Audio setup could not start: " + ex.Message);
+            }
         }
 
         /// <summary>Rebuilds the WMI watch list elevated. Returns false if that did not succeed.</summary>

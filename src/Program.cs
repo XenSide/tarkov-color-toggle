@@ -61,6 +61,20 @@ namespace TarkovColor
                     return 0;
                 }
 
+                if (Eq(cmd, "-AudioSetup"))
+                {
+                    if (!IsElevated()) { Relaunch("-AudioSetup"); return 0; }
+                    if (Setup.ApoInstalled && (Setup.LoudMaxInstalled || !Setup.AnyPresetNeedsLoudMax()))
+                    {
+                        MessageBox.Show("The audio side is already set up.\n\nEqualizer APO is installed"
+                            + (Setup.LoudMaxInstalled ? " and LoudMax is present." : "."),
+                            "Display Profile Switcher");
+                        return 0;
+                    }
+                    SetUpAudioDependencies();
+                    return 0;
+                }
+
                 if (Eq(cmd, "-Rewatch"))
                 {
                     if (!IsElevated()) { Relaunch("-Rewatch"); return 0; }
