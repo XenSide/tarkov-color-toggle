@@ -48,18 +48,17 @@ namespace TarkovColor
             "https://sourceforge.net/projects/equalizerapo/files/latest/download";
 
         /// <summary>
-        /// Downloads Equalizer APO's own installer and runs it. The last steps cannot be
-        /// automated: its installer asks which output device to attach to, and a reboot is
-        /// required before the driver is active.
+        /// Downloads Equalizer APO's own installer and runs it. One step cannot be automated:
+        /// its installer asks which output device to attach to. Current versions normally take
+        /// effect immediately, so a reboot is a fallback rather than a requirement.
         /// </summary>
         public static void OfferApo(IWin32Window owner)
         {
             DialogResult r = MessageBox.Show(owner,
                 "Equalizer APO is needed for the audio side. The display side works fine without it.\n\n"
                 + "Download and run its installer now?\n\n"
-                + "Two steps cannot be done for you: it will ask which output device to attach to "
-                + "(tick your headphones), and Windows needs a reboot afterwards. "
-                + "Run this setup again once you are back.",
+                + "One step cannot be done for you: it asks which output device to attach to, "
+                + "so tick your headphones there.",
                 "Display Profile Switcher - Audio setup",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
@@ -86,8 +85,9 @@ namespace TarkovColor
 
                 MessageBox.Show(owner,
                     "The Equalizer APO installer is starting.\n\n"
-                    + "Tick your headphones in its device list, finish it, and reboot.\n"
-                    + "Then run this setup again to finish the audio side.",
+                    + "Tick your headphones in its device list and finish it, then use\n"
+                    + "\"Audio setup...\" in the tray menu to complete the audio side.\n\n"
+                    + "If the EQ has no effect afterwards, reboot and try again.",
                     "Display Profile Switcher");
             }
             catch (Exception ex)
