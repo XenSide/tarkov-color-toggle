@@ -52,17 +52,18 @@ namespace TarkovColor
         /// its installer asks which output device to attach to. Current versions normally take
         /// effect immediately, so a reboot is a fallback rather than a requirement.
         /// </summary>
-        public static void OfferApo(IWin32Window owner)
+        /// <summary>Returns true once Equalizer APO is present, so the caller can carry straight on.</summary>
+        public static bool OfferApo(IWin32Window owner)
         {
             DialogResult r = MessageBox.Show(owner,
                 "Equalizer APO is needed for the audio side. The display side works fine without it.\n\n"
                 + "Download and run its installer now?\n\n"
                 + "One step cannot be done for you: it asks which output device to attach to, "
-                + "so tick your headphones there.",
+                + "so tick your headphones there. Setup carries on by itself once you finish it.",
                 "Display Profile Switcher - Audio setup",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
-            if (r != DialogResult.Yes) return;
+            if (r != DialogResult.Yes) return false;
 
             string installer = Path.Combine(Path.GetTempPath(), "EqualizerAPO-setup.exe");
             try
@@ -83,14 +84,33 @@ namespace TarkovColor
 
                 ProcessStartInfo psi = new ProcessStartInfo(installer);
                 psi.UseShellExecute = true;
-                Process.Start(psi);
 
-                MessageBox.Show(owner,
-                    "The Equalizer APO installer is starting.\n\n"
-                    + "Tick your headphones in its device list and finish it, then use\n"
-                    + "\"Audio setup...\" in the tray menu to complete the audio side.\n\n"
-                    + "If the EQ has no effect afterwards, reboot and try again.",
-                    "Display Profile Switcher");
+                // Wait for it rather than returning, so the rest of the audio setup can run
+                // in the same sitting instead of making the user come back to the tray menu.
+                // We are already elevated, so the installer does not spawn a separate
+                // elevated process that would leave us waiting on the wrong handle.
+                using (Process p = Process.Start(psi))
+                {
+                    if (p != null) p.WaitForExit();
+                }
+
+                // The registry entry can lag slightly behind the installer exiting.
+                for (int i = 0; i < 10 && !ApoInstalled; i++) System.Threading.Thread.Sleep(300);
+
+                if (!ApoInstalled)
+                {
+                    Config.Log("Equalizer APO still not detected after its installer closed.");
+                    MessageBox.Show(owner,
+                        "Equalizer APO still is not detected.\n\n"
+                        + "If you cancelled its installer, run \"Audio setup...\" from the tray menu "
+                        + "to try again. If you did complete it, reboot and run that once more.",
+                        "Display Profile Switcher - Audio setup",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+
+                Config.Log("Equalizer APO detected after installation.");
+                return true;
             }
             catch (Exception ex)
             {
@@ -101,6 +121,7 @@ namespace TarkovColor
                     "Display Profile Switcher - Audio setup",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (fb == DialogResult.Yes) OpenUrl(ApoSite);
+                return false;
             }
         }
 

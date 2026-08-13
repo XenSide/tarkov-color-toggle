@@ -195,11 +195,9 @@ namespace TarkovColor
         /// </summary>
         private static void SetUpAudioDependencies()
         {
-            if (!Setup.ApoInstalled)
-            {
-                Setup.OfferApo(null);
-                return;
-            }
+            // OfferApo waits for its installer, so on success we carry straight on to the
+            // plugin instead of sending the user back through the tray menu.
+            if (!Setup.ApoInstalled && !Setup.OfferApo(null)) return;
 
             if (Setup.LoudMaxInstalled || !Setup.AnyPresetNeedsLoudMax()) return;
 
