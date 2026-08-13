@@ -64,9 +64,14 @@ If [Equalizer APO](https://equalizerapo.com/) is installed, each profile can als
 an EQ preset, so sound and display switch together when the game starts. Without it the
 field is simply disabled and everything else works normally.
 
-Setup takes care of the pieces it can. If Equalizer APO is missing it points you at the
-download (its own installer asks which output device to attach to, and needs a reboot).
-If a preset uses the LoudMax limiter and that plugin is missing, setup offers to fetch it.
+Setup takes care of the pieces it can. If Equalizer APO is missing, it downloads and runs
+that project's own installer; the one step it cannot do for you is ticking your output
+device in the list APO presents. If a preset uses the LoudMax limiter and that plugin is
+missing, setup fetches it too.
+
+Because APO only becomes usable partway through that sequence, the tray menu has an
+**Audio setup...** entry that resumes it at any time. Replacing the executable on an
+existing install goes straight to the tray, so first-run setup will not fire again.
 
 Neither is bundled here, deliberately: Equalizer APO is GPLv2, and LoudMax is freeware
 whose author does not permit redistribution. Both are downloaded from their own official
