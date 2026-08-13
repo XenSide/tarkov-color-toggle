@@ -1,0 +1,54 @@
+{
+  "Profiles": [
+    {
+      "Name": "Tarkov full (LoudMax)",
+      "IccFile": null,
+      "Gamma": 1.0,
+      "Contrast": 1.0,
+      "Brightness": 0.0,
+      "Saturation": 1.0,
+      "HotkeyModifiers": 3,
+      "HotkeyKey": 117,
+      "AudioFile": "tarkov-full.txt"
+    },
+    {
+      "Name": "Tarkov (EQ only)",
+      "IccFile": null,
+      "Gamma": 1.0,
+      "Contrast": 1.0,
+      "Brightness": 0.0,
+      "Saturation": 1.0,
+      "HotkeyModifiers": 3,
+      "HotkeyKey": 112,
+      "AudioFile": "tarkov.txt"
+    },
+    {
+      "Name": "Tarkov soft shots",
+      "IccFile": null,
+      "Gamma": 1.0,
+      "Contrast": 1.0,
+      "Brightness": 0.0,
+      "Saturation": 1.0,
+      "HotkeyModifiers": 3,
+      "HotkeyKey": 115,
+      "AudioFile": "tarkov-softshots.txt"
+    },
+    {
+      "Name": "Tarkov no air",
+      "IccFile": null,
+      "Gamma": 1.0,
+      "Contrast": 1.0,
+      "Brightness": 0.0,
+      "Saturation": 1.0,
+      "HotkeyModifiers": 3,
+      "HotkeyKey": 116,
+      "AudioFile": "tarkov-noair.txt"
+    }
+  ],
+  "TarkovProfile": null,
+  "ResetHotkeyModifiers": 3,
+  "ResetHotkeyKey": 114,
+  "Rules": [
+    { "ProcessName": "EscapeFromTarkov.exe", "ProfileName": "Tarkov full (LoudMax)" }
+  ]
+}

@@ -1,0 +1,18 @@
+# Tarkov - Stereo Bites EQ with the gunshot bite taken off
+#
+# Same four filters as tarkov.txt, plus one broad cut around 3 kHz.
+#
+# That region is where the ear canal resonates, so it is perceptually the loudest
+# part of a gunshot's transient even when it is not the highest in level. A wide,
+# shallow cut there takes the sting out without the surgical feel of a narrow notch,
+# and it sits below the 6 kHz cut already in the chain rather than overlapping it.
+#
+# The 10 kHz lift is deliberately kept, since the directional cues it restores are
+# the part that is working. If shots are still too much, try tarkov-noair.txt, which
+# removes that lift instead.
+
+Filter: ON HPQ Fc 100 Hz Q 0.8
+Filter: ON PK Fc 550 Hz Gain -2 dB Q 1.1
+Filter: ON PK Fc 3200 Hz Gain -3 dB Q 1.0
+Filter: ON PK Fc 6000 Hz Gain -3 dB Q 5
+Filter: ON HS Fc 10000 Hz Gain 3 dB

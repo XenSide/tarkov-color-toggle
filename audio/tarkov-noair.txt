@@ -1,0 +1,16 @@
+# Tarkov - Stereo Bites EQ without the 10 kHz lift
+#
+# Same four filters as tarkov.txt with the high shelf flattened.
+#
+# That lift is the only boost in the whole chain, and gunshot transients carry a lot
+# of energy up there, so it is the most likely single cause of shots feeling harsh.
+# Removing it should calm them down - at the cost of some of the directional cue
+# clarity it was added for.
+#
+# Compare against tarkov-softshots.txt, which keeps the lift and cuts around 3 kHz
+# instead. They trade off in opposite directions, so whichever wins tells you whether
+# the problem is high-frequency sizzle or midrange bite.
+
+Filter: ON HPQ Fc 100 Hz Q 0.8
+Filter: ON PK Fc 550 Hz Gain -2 dB Q 1.1
+Filter: ON PK Fc 6000 Hz Gain -3 dB Q 5

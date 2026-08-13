@@ -50,13 +50,17 @@ namespace TarkovColor
             {
                 Ramp.Reset();
                 if (includeSaturation) Saturation.Reset();
+                // Unlike saturation, the EQ lives in a file, so it survives this process exiting.
+                AudioProfile.Apply(null);
                 Config.Log("Applied: (default)" + (includeSaturation ? " +saturation" : ""));
                 return;
             }
 
             Ramp.Apply(p);
             if (includeSaturation) Saturation.Apply(p.Saturation);
+            AudioProfile.Apply(p);
             Config.Log("Applied: " + p.Name
+                + (string.IsNullOrEmpty(p.AudioFile) ? "" : " eq=" + p.AudioFile)
                 + " gamma=" + p.Gamma.ToString("0.00")
                 + " contrast=" + p.Contrast.ToString("0.00")
                 + " brightness=" + p.Brightness.ToString("0.00")

@@ -31,6 +31,9 @@ namespace TarkovColor
         [DataMember(Order = 6)] public uint HotkeyModifiers { get; set; }
         [DataMember(Order = 7)] public uint HotkeyKey { get; set; }
 
+        /// <summary>File name of an Equalizer APO preset in the "audio" folder, or null for no EQ.</summary>
+        [DataMember(Order = 8)] public string AudioFile { get; set; }
+
         public Profile()
         {
             Name = "New profile";
@@ -62,7 +65,8 @@ namespace TarkovColor
                 Brightness = Brightness,
                 Saturation = Saturation,
                 HotkeyModifiers = HotkeyModifiers,
-                HotkeyKey = HotkeyKey
+                HotkeyKey = HotkeyKey,
+                AudioFile = AudioFile
             };
         }
     }
@@ -196,6 +200,30 @@ namespace TarkovColor
         /// </summary>
         public static Config CreateDefault()
         {
+            // A shipped profiles.default.json lets a release arrive with working profiles
+            // instead of an empty list. It is only ever read, never written back to.
+            try
+            {
+                string seed = Path.Combine(AppDir, "profiles.default.json");
+                if (File.Exists(seed))
+                {
+                    using (FileStream fs = File.OpenRead(seed))
+                    {
+                        DataContractJsonSerializer ser = new DataContractJsonSerializer(typeof(Config));
+                        Config seeded = (Config)ser.ReadObject(fs);
+                        if (seeded != null && seeded.Profiles != null && seeded.Profiles.Count > 0)
+                        {
+                            if (seeded.Rules == null) seeded.Rules = new List<AppRule>();
+                            return seeded;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("Could not read profiles.default.json, falling back to built-in defaults: " + ex.Message);
+            }
+
             Config cfg = new Config();
 
             string icc = null;
