@@ -69,8 +69,25 @@ namespace TarkovColor
 
             Saturation.Initialize();
             RegisterHotkeys();
+            CaptureBaselineIfSafe();
             ReapplyActive();
             WatchApoConfig();
+        }
+
+        /// <summary>
+        /// Records what the screen looked like before we touched it, so "reset" can return to
+        /// exactly that. Only done while no profile is applied, since capturing mid-profile
+        /// would bake our own changes into the baseline.
+        /// </summary>
+        private void CaptureBaselineIfSafe()
+        {
+            if (Ramp.HasBaseline) return;
+            if (!string.IsNullOrEmpty(Config.ReadActiveProfileName()))
+            {
+                Config.Log("Skipped baseline capture: a profile is currently applied.");
+                return;
+            }
+            Ramp.CaptureBaseline();
         }
 
         /// <summary>
@@ -245,6 +262,12 @@ namespace TarkovColor
             reset.Click += delegate { ApplyAndNotify(null); };
             menu.Items.Add(reset);
 
+            // The baseline is captured automatically, but only ever once and only when it can
+            // be trusted, so there has to be a way to set it deliberately.
+            ToolStripMenuItem capture = new ToolStripMenuItem("Set current colours as default");
+            capture.Click += delegate { CaptureBaselineNow(); };
+            menu.Items.Add(capture);
+
             menu.Items.Add(new ToolStripSeparator());
 
             ToolStripMenuItem settings = new ToolStripMenuItem("Settings...");
@@ -316,6 +339,26 @@ namespace TarkovColor
             _openConfig.Activate();
             _openConfig.BringToFront();
             SetForegroundWindow(_openConfig.Handle);
+        }
+
+        private void CaptureBaselineNow()
+        {
+            string active = Config.ReadActiveProfileName();
+            if (!string.IsNullOrEmpty(active))
+            {
+                if (MessageBox.Show(
+                        "The profile \"" + active + "\" is applied right now, so the current colours "
+                        + "include its changes.\n\nUse them as the default anyway?",
+                        "Display Profile Switcher", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+                    != DialogResult.Yes) return;
+            }
+
+            if (Ramp.CaptureBaseline())
+                _icon.ShowBalloonTip(3000, "Display Profile Switcher",
+                    "Current colours saved as the default to reset to.", ToolTipIcon.Info);
+            else
+                MessageBox.Show("Could not read the current display settings.",
+                    "Display Profile Switcher", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void RunAudioSetup()
