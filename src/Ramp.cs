@@ -21,6 +21,12 @@ namespace TarkovColor
         [DllImport("gdi32.dll", SetLastError = true)]
         private static extern bool SetDeviceGammaRamp(IntPtr hdc, ushort[] lpRamp);
 
+        [DllImport("gdi32.dll", SetLastError = true)]
+        private static extern bool GetDeviceGammaRamp(IntPtr hdc, ushort[] lpRamp);
+
+        /// <summary>The screen's ramp as it was before this tool first touched it.</summary>
+        private static string BaselinePath { get { return Path.Combine(Config.AppDir, "default-ramp.bin"); } }
+
         public static string PrimaryDeviceName()
         {
             foreach (Screen s in Screen.AllScreens)
@@ -38,11 +44,81 @@ namespace TarkovColor
             Config.WriteActiveProfileName(p == null ? null : p.Name);
         }
 
-        /// <summary>Resets the primary display to a linear ramp (Windows default).</summary>
+        /// <summary>
+        /// Restores the display to how it was before this tool first touched it.
+        ///
+        /// A linear ramp is NOT the same thing as "default": on a calibrated display the
+        /// system loads a correction curve, and forcing linear throws that away, which looks
+        /// obviously wrong rather than neutral. So the real ramp is captured once up front
+        /// and replayed here, and linear is only the fallback when no baseline exists.
+        /// </summary>
         public static void Reset()
         {
-            Push(Identity());
+            ushort[] baseline = LoadBaseline();
+            Push(baseline != null ? baseline : Identity());
             Config.WriteActiveProfileName(null);
+        }
+
+        /// <summary>Reads the ramp currently loaded on the primary display.</summary>
+        public static ushort[] ReadCurrent()
+        {
+            string device = PrimaryDeviceName();
+            IntPtr hdc = CreateDCW(device, null, null, IntPtr.Zero);
+            if (hdc == IntPtr.Zero) return null;
+            try
+            {
+                ushort[] ramp = new ushort[768];
+                return GetDeviceGammaRamp(hdc, ramp) ? ramp : null;
+            }
+            finally
+            {
+                DeleteDC(hdc);
+            }
+        }
+
+        public static bool HasBaseline { get { return File.Exists(BaselinePath); } }
+
+        /// <summary>
+        /// Stores the current ramp as the state to return to. Callers must only do this while
+        /// no profile is applied, otherwise the baseline records our own changes.
+        /// </summary>
+        public static bool CaptureBaseline()
+        {
+            try
+            {
+                ushort[] ramp = ReadCurrent();
+                if (ramp == null) return false;
+
+                byte[] bytes = new byte[ramp.Length * 2];
+                Buffer.BlockCopy(ramp, 0, bytes, 0, bytes.Length);
+                File.WriteAllBytes(BaselinePath, bytes);
+                Config.Log("Captured the display's baseline ramp.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Config.Log("Could not capture the baseline ramp: " + ex.Message);
+                return false;
+            }
+        }
+
+        private static ushort[] LoadBaseline()
+        {
+            try
+            {
+                if (!File.Exists(BaselinePath)) return null;
+                byte[] bytes = File.ReadAllBytes(BaselinePath);
+                if (bytes.Length != 768 * 2) return null;
+
+                ushort[] ramp = new ushort[768];
+                Buffer.BlockCopy(bytes, 0, ramp, 0, bytes.Length);
+                return ramp;
+            }
+            catch (Exception ex)
+            {
+                Config.Log("Could not read the baseline ramp: " + ex.Message);
+                return null;
+            }
         }
 
         /// <summary>Applies a ramp without touching the stored active-profile state (used for live preview).</summary>

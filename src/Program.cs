@@ -160,6 +160,9 @@ namespace TarkovColor
             // Make sure a config exists so the tray has something to show.
             if (!File.Exists(Config.ConfigPath)) Config.CreateDefault().Save();
 
+            // Record the untouched display state now, while nothing of ours is applied yet.
+            if (!Ramp.HasBaseline) Ramp.CaptureBaseline();
+
             CreateTask(TaskSync, "-Sync", user, false);
             CreateTask(TaskTray, "-Tray", user, true);
 
