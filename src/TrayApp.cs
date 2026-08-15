@@ -228,15 +228,53 @@ namespace TarkovColor
             }
         }
 
-        /// <summary>Re-assert whatever profile was last active, so saturation returns after a restart.</summary>
+        /// <summary>
+        /// Decides what should be on screen at startup, mainly so saturation returns after a
+        /// restart (it dies with the process that set it).
+        ///
+        /// What is actually running wins over what was stored. Trusting the stored name alone
+        /// means a machine shut down with a game open boots into that game's profile, and
+        /// keeps doing so every boot, since nothing will ever fire the matching stop event.
+        /// </summary>
         private void ReapplyActive()
         {
-            string active = Config.ReadActiveProfileName();
-            if (string.IsNullOrEmpty(active)) return;
-            Profile p = _config.Find(active);
-            if (p == null) return;
-            try { Applier.ApplyLocal(p, true); }
-            catch (Exception ex) { Config.Log("ERROR reapplying '" + active + "': " + ex.Message); }
+            try
+            {
+                Profile byRule = _config.ResolveActiveRule();
+                if (byRule != null)
+                {
+                    Applier.ApplyLocal(byRule, true);
+                    return;
+                }
+
+                string stored = Config.ReadActiveProfileName();
+                if (string.IsNullOrEmpty(stored)) return;
+
+                // A profile any rule can apply is presumed to be left over from that rule, so
+                // it is dropped rather than restored. One picked by hand is kept.
+                if (IsRuleDriven(stored))
+                {
+                    Config.Log("Discarded stale profile '" + stored + "': its application is not running.");
+                    Applier.ApplyLocal(null, true);
+                    return;
+                }
+
+                Profile manual = _config.Find(stored);
+                if (manual != null) Applier.ApplyLocal(manual, true);
+            }
+            catch (Exception ex)
+            {
+                Config.Log("ERROR restoring state at startup: " + ex.Message);
+            }
+        }
+
+        private bool IsRuleDriven(string profileName)
+        {
+            foreach (AppRule r in _config.Rules)
+            {
+                if (string.Equals(r.ProfileName, profileName, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
         }
 
         // ---------- menu ----------
