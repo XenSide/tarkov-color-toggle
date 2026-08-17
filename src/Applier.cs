@@ -50,6 +50,7 @@ namespace TarkovColor
             {
                 Ramp.Reset();
                 if (includeSaturation) Saturation.Reset();
+                Vibrance.Reset();
                 // Unlike saturation, the EQ lives in a file, so it survives this process exiting.
                 AudioProfile.Apply(null);
                 Config.Log("Applied: (default)" + (includeSaturation ? " +saturation" : ""));
@@ -58,6 +59,7 @@ namespace TarkovColor
 
             Ramp.Apply(p);
             if (includeSaturation) Saturation.Apply(p.Saturation);
+            Vibrance.SetLevel(p.Vibrance);
             AudioProfile.Apply(p);
             Config.Log("Applied: " + p.Name
                 + (string.IsNullOrEmpty(p.AudioFile) ? "" : " eq=" + p.AudioFile)

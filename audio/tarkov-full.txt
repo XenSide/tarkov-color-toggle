@@ -1,7 +1,14 @@
 # Tarkov - full Stereo Bites chain, including the LoudMax limiter
 #
-# His four EQ filters unchanged, plus the LoudMax limiter at his published settings.
-# Thresh/Output 0.797727 is -6.1 dB on LoudMax's 0..-30 dB scale.
+# His four EQ filters unchanged, plus the LoudMax limiter.
+#
+# Threshold stays at his published -6.1 dB (0.797727 on LoudMax's 0..-30 dB scale):
+# that is what drives the limiting and lifts quiet detail.
+#
+# Output does NOT. He also set it to -6.1, which caps everything 6 dB below full
+# scale; stacked on top of the EQ cuts, the result was simply too quiet to play
+# with. It is raised to roughly 0 dB here, leaving a hair of headroom for
+# intersample peaks. This changes level, not the character of the processing.
 #
 # Requires LoudMax64.dll in EqualizerAPO\VSTPlugins (free, from loudmax.blogspot.com).
 # Without it APO simply skips the plugin line and the EQ still applies.
@@ -15,4 +22,4 @@ Filter: ON HPQ Fc 100 Hz Q 0.8
 Filter: ON PK Fc 550 Hz Gain -2 dB Q 1.1
 Filter: ON PK Fc 6000 Hz Gain -3 dB Q 5
 Filter: ON HS Fc 10000 Hz Gain 3 dB
-VSTPlugin: Library LoudMax64.dll Thresh 0.797727 Output 0.797727 "Fader Link" 0 "ISP Detection" 0 "Large GUI" 0
+VSTPlugin: Library LoudMax64.dll Thresh 0.797727 Output 0.990000 "Fader Link" 0 "ISP Detection" 0 "Large GUI" 0

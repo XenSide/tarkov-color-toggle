@@ -26,8 +26,8 @@ namespace TarkovColor
         private TextBox _txtName, _txtHotkey, _txtResetHotkey;
         private ComboBox _cmbIcc, _cmbAudio;
         private Label _lblAudioNote;
-        private TrackBar _tbGamma, _tbContrast, _tbBrightness, _tbSaturation;
-        private Label _lblGamma, _lblContrast, _lblBrightness, _lblSaturation;
+        private TrackBar _tbGamma, _tbContrast, _tbBrightness, _tbSaturation, _tbVibrance;
+        private Label _lblGamma, _lblContrast, _lblBrightness, _lblSaturation, _lblVibrance, _lblVibranceNote;
 
         public ConfigForm(Config source)
         {
@@ -156,6 +156,15 @@ namespace TarkovColor
             _tbContrast = MakeSlider(x, ref y, "Contrast", 50, 300, out _lblContrast);
             _tbBrightness = MakeSlider(x, ref y, "Brightness", -50, 50, out _lblBrightness);
             _tbSaturation = MakeSlider(x, ref y, "Saturation", 0, 300, out _lblSaturation);
+            _tbVibrance = MakeSlider(x, ref y, "Vibrance", Vibrance.MinLevel, Vibrance.MaxLevel, out _lblVibrance);
+
+            _lblVibranceNote = MakeLabel("", x + 76, y, 380);
+            _lblVibranceNote.ForeColor = SystemColors.GrayText;
+            _lblVibranceNote.Text = Vibrance.IsAvailable
+                ? "NVIDIA vibrance - adds saturation with no presentation cost."
+                : "NVIDIA vibrance unavailable on this system.";
+            _tbVibrance.Enabled = Vibrance.IsAvailable;
+            y += 22;
 
             y += 10;
             Controls.Add(MakeLabel("Hotkey", x, y + 3, 70));
@@ -180,7 +189,7 @@ namespace TarkovColor
             {
                 if (Current == null) return;
                 Current.Gamma = 1.0; Current.Contrast = 1.0;
-                Current.Brightness = 0.0; Current.Saturation = 1.0;
+                Current.Brightness = 0.0; Current.Saturation = 1.0; Current.Vibrance = 0;
                 LoadCurrentIntoControls();
                 Preview();
             };
@@ -235,7 +244,8 @@ namespace TarkovColor
             };
 
             Label hint = MakeLabel(
-                "Changes preview live on the primary monitor.\nSaturation needs the tray app running.",
+                "Changes preview live on the primary monitor. Saturation needs the tray running,\n"
+                + "and costs hardware presentation in games. Leave it at 1.00 unless you want it.",
                 12, 556, 440);
             hint.Height = 42;
             hint.ForeColor = SystemColors.GrayText;
@@ -511,6 +521,7 @@ namespace TarkovColor
             _tbContrast.Enabled = has;
             _tbBrightness.Enabled = has;
             _tbSaturation.Enabled = has;
+            _tbVibrance.Enabled = has && Vibrance.IsAvailable;
             _txtHotkey.Enabled = has;
             _btnClearHotkey.Enabled = has;
             _btnNeutral.Enabled = has;
@@ -534,6 +545,7 @@ namespace TarkovColor
             _tbContrast.Value = ClampInt((int)Math.Round(p.Contrast * 100), _tbContrast.Minimum, _tbContrast.Maximum);
             _tbBrightness.Value = ClampInt((int)Math.Round(p.Brightness * 100), _tbBrightness.Minimum, _tbBrightness.Maximum);
             _tbSaturation.Value = ClampInt((int)Math.Round(p.Saturation * 100), _tbSaturation.Minimum, _tbSaturation.Maximum);
+            _tbVibrance.Value = ClampInt(p.Vibrance, _tbVibrance.Minimum, _tbVibrance.Maximum);
             _txtHotkey.Text = HotkeyText.Describe(p.HotkeyModifiers, p.HotkeyKey);
             _txtResetHotkey.Text = HotkeyText.Describe(_config.ResetHotkeyModifiers, _config.ResetHotkeyKey);
 
@@ -554,6 +566,7 @@ namespace TarkovColor
             p.Contrast = _tbContrast.Value / 100.0;
             p.Brightness = _tbBrightness.Value / 100.0;
             p.Saturation = _tbSaturation.Value / 100.0;
+            p.Vibrance = _tbVibrance.Value;
             UpdateSliderLabels();
             Preview();
         }
@@ -564,6 +577,7 @@ namespace TarkovColor
             _lblContrast.Text = (_tbContrast.Value / 100.0).ToString("0.00");
             _lblBrightness.Text = (_tbBrightness.Value / 100.0).ToString("+0.00;-0.00;0.00");
             _lblSaturation.Text = (_tbSaturation.Value / 100.0).ToString("0.00");
+            _lblVibrance.Text = _tbVibrance.Value.ToString();
         }
 
         private void Preview()
@@ -574,6 +588,7 @@ namespace TarkovColor
             {
                 Ramp.Preview(p);
                 Saturation.Apply(p.Saturation);
+                Vibrance.SetLevel(p.Vibrance);
             }
             catch (Exception ex)
             {

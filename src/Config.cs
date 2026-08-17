@@ -34,6 +34,15 @@ namespace TarkovColor
         /// <summary>File name of an Equalizer APO preset in the "audio" folder, or null for no EQ.</summary>
         [DataMember(Order = 8)] public string AudioFile { get; set; }
 
+        /// <summary>
+        /// NVIDIA Digital Vibrance level, 0-63. 0 is neutral.
+        ///
+        /// Prefer this over Saturation for anything you play: it is applied in the display
+        /// pipeline, so it does not force desktop composition the way the saturation matrix
+        /// does. It cannot desaturate, and it needs an NVIDIA card.
+        /// </summary>
+        [DataMember(Order = 9)] public int Vibrance { get; set; }
+
         public Profile()
         {
             Name = "New profile";
@@ -66,7 +75,8 @@ namespace TarkovColor
                 Saturation = Saturation,
                 HotkeyModifiers = HotkeyModifiers,
                 HotkeyKey = HotkeyKey,
-                AudioFile = AudioFile
+                AudioFile = AudioFile,
+                Vibrance = Vibrance
             };
         }
     }

@@ -9,8 +9,14 @@ namespace TarkovColor
     /// A gamma ramp is a per-channel 1D LUT and mathematically cannot change saturation
     /// (that needs channel mixing). This 5x5 matrix can, and it is GPU-vendor neutral.
     ///
-    /// Caveat: the effect only lives as long as the process that set it, so this is
-    /// driven by the tray app rather than by the short-lived one-shot invocations.
+    /// It is not free. The matrix applies to the composed desktop, so while it is active
+    /// DWM cannot hand a game's buffer straight to scanout: presentation drops from
+    /// hardware independent flip to Composed: Flip. Gamma, contrast and brightness do not
+    /// have this cost, since they live in the display controller's LUT after composition.
+    ///
+    /// So nothing here is touched at all unless a profile actually asks for saturation,
+    /// and the effect is released as soon as it returns to neutral - rather than leaving an
+    /// identity matrix in place, which would keep the composition penalty for no benefit.
     /// </summary>
     public static class Saturation
     {
@@ -31,26 +37,27 @@ namespace TarkovColor
         private static extern bool MagSetFullscreenColorEffect(ref MAGCOLOREFFECT pEffect);
 
         private static bool _initialized;
+        private static bool _effectActive;
 
-        public static bool Initialize()
+        /// <summary>True when a non-neutral matrix is currently applied.</summary>
+        public static bool IsActive { get { return _effectActive; } }
+
+        private static bool EnsureInitialized()
         {
             if (_initialized) return true;
             _initialized = MagInitialize();
+            if (!_initialized) Config.Log("MagInitialize failed; saturation unavailable.");
             return _initialized;
-        }
-
-        public static void Shutdown()
-        {
-            if (!_initialized) return;
-            try { Apply(1.0); } catch { }
-            MagUninitialize();
-            _initialized = false;
         }
 
         /// <summary>1.0 = unchanged, 0.0 = greyscale, &gt;1.0 = more saturated.</summary>
         public static bool Apply(double saturation)
         {
-            if (!Initialize()) return false;
+            // Treat anything indistinguishable from neutral as "no effect wanted", so the
+            // Magnification path is never engaged just to apply an identity transform.
+            if (Math.Abs(saturation - 1.0) < 0.001) return Release();
+
+            if (!EnsureInitialized()) return false;
 
             float s = (float)saturation;
 
@@ -68,12 +75,35 @@ namespace TarkovColor
 
             MAGCOLOREFFECT effect = new MAGCOLOREFFECT();
             effect.transform = m;
-            return MagSetFullscreenColorEffect(ref effect);
+
+            bool ok = MagSetFullscreenColorEffect(ref effect);
+            if (ok) _effectActive = true;
+            return ok;
+        }
+
+        /// <summary>
+        /// Drops the colour transform entirely, restoring hardware presentation. Uninitialising
+        /// is what actually releases it; setting an identity matrix would not.
+        /// </summary>
+        public static bool Release()
+        {
+            if (!_initialized) return true;
+
+            bool ok = MagUninitialize();
+            _initialized = false;
+            _effectActive = false;
+            if (!ok) Config.Log("MagUninitialize failed.");
+            return ok;
         }
 
         public static bool Reset()
         {
-            return Apply(1.0);
+            return Release();
+        }
+
+        public static void Shutdown()
+        {
+            Release();
         }
     }
 }
