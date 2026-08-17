@@ -67,7 +67,8 @@ namespace TarkovColor
             };
             _icon.MouseUp += OnIconMouseUp;
 
-            Saturation.Initialize();
+            // Deliberately not initialising the saturation path here: engaging it costs
+            // hardware presentation, so it is left untouched until a profile asks for it.
             RegisterHotkeys();
             CaptureBaselineIfSafe();
             ReapplyActive();
