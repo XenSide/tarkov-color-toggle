@@ -25,9 +25,6 @@ namespace TarkovColor
         /// <summary>0.0 = neutral, range -0.5 .. 0.5.</summary>
         [DataMember(Order = 4)] public double Brightness { get; set; }
 
-        /// <summary>1.0 = neutral, 0.0 = greyscale. Applied via the Magnification colour matrix.</summary>
-        [DataMember(Order = 5)] public double Saturation { get; set; }
-
         [DataMember(Order = 6)] public uint HotkeyModifiers { get; set; }
         [DataMember(Order = 7)] public uint HotkeyKey { get; set; }
 
@@ -37,11 +34,33 @@ namespace TarkovColor
         /// <summary>
         /// NVIDIA Digital Vibrance level, 0-63. 0 is neutral.
         ///
-        /// Prefer this over Saturation for anything you play: it is applied in the display
-        /// pipeline, so it does not force desktop composition the way the saturation matrix
-        /// does. It cannot desaturate, and it needs an NVIDIA card.
+        /// Applied in the display pipeline rather than in desktop composition, so unlike a
+        /// colour-matrix approach it costs nothing in presentation. It cannot desaturate,
+        /// and it needs an NVIDIA card.
         /// </summary>
         [DataMember(Order = 9)] public int Vibrance { get; set; }
+
+        /// <summary>
+        /// How strongly the tonal changes are pulled back near white, 0-100. 0 applies them
+        /// evenly, as before.
+        ///
+        /// Raising gamma to open up shadows also lifts the top end, and contrast then pushes
+        /// it further, so highlights blow out well before the shadows are where you want them.
+        /// This fades gamma, contrast and brightness back towards the untouched signal as the
+        /// input approaches white, leaving white itself exactly where it was.
+        ///
+        /// It is shaped into the gamma ramp like the rest, so it costs nothing in presentation.
+        /// </summary>
+        [DataMember(Order = 10, Name = "HighlightRolloff")] public int WhiteProtectionStrength { get; set; }
+
+        /// <summary>
+        /// Where the highlight pull-back starts, as a percentage of the range. Below it the
+        /// tonal controls act at full strength and are never touched.
+        ///
+        /// At 0 the pull-back is spread across the whole range, weighted so shadows barely
+        /// move and white moves most. Raise it to confine the effect to the bright end only.
+        /// </summary>
+        [DataMember(Order = 11, Name = "HighlightKnee")] public int WhiteProtectionKnee { get; set; }
 
         public Profile()
         {
@@ -49,16 +68,16 @@ namespace TarkovColor
             Gamma = 1.0;
             Contrast = 1.0;
             Brightness = 0.0;
-            Saturation = 1.0;
+            WhiteProtectionStrength = 100;
+            WhiteProtectionKnee = 0;
         }
 
-        /// <summary>Older config files predate Saturation; 0 there means "unset", not greyscale.</summary>
+        /// <summary>Older config files may lack these; 0 there means "unset", not a real value.</summary>
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
             if (Gamma <= 0) Gamma = 1.0;
             if (Contrast <= 0) Contrast = 1.0;
-            if (Saturation <= 0) Saturation = 1.0;
         }
 
         public bool HasHotkey { get { return HotkeyKey != 0; } }
@@ -72,11 +91,12 @@ namespace TarkovColor
                 Gamma = Gamma,
                 Contrast = Contrast,
                 Brightness = Brightness,
-                Saturation = Saturation,
                 HotkeyModifiers = HotkeyModifiers,
                 HotkeyKey = HotkeyKey,
                 AudioFile = AudioFile,
-                Vibrance = Vibrance
+                Vibrance = Vibrance,
+                WhiteProtectionStrength = WhiteProtectionStrength,
+                WhiteProtectionKnee = WhiteProtectionKnee
             };
         }
     }
@@ -259,7 +279,6 @@ namespace TarkovColor
                 Gamma = 1.0,
                 Contrast = 1.0,
                 Brightness = 0.0,
-                Saturation = 1.0
             };
             cfg.Profiles.Add(tarkov);
             cfg.Rules.Add(new AppRule("EscapeFromTarkov.exe", tarkov.Name));

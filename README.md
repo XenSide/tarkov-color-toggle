@@ -13,14 +13,19 @@ done with APIs that ship with Windows.
 | Setting | How it works |
 | --- | --- |
 | Gamma, contrast, brightness | Written into the GPU's gamma ramp, so it applies even in exclusive fullscreen |
-| Saturation | Desktop-wide colour matrix via the Magnification API |
+| White protection | Pulls gamma, contrast and brightness back towards the untouched signal near white, so lifting shadows does not blow out highlights. Shaped into the same gamma ramp |
+| Vibrance | NVIDIA Digital Vibrance (0-63), applied in the display pipeline. NVIDIA only, can only add saturation |
 | ICC base curve | Optional. The `vcgt` calibration curve of an `.icc` file is used as the starting point, then the sliders adjust it |
 | Audio EQ | Optional. Swaps an [Equalizer APO](https://equalizerapo.com/) preset from the `audio` folder along with the display settings |
 
+Every setting is applied by the display hardware, so none of it costs presentation
+performance in games, and all of it keeps working without the tray app running.
+
 Saturation genuinely cannot be done with a gamma ramp: a gamma ramp is a per-channel 1D
-lookup table, and saturation requires mixing channels. That is why it goes through a
-separate mechanism, and why it needs the tray app to be running (the effect only lives
-as long as the process that set it). Everything else keeps working without it.
+lookup table, and saturation requires mixing channels. Doing it on the composed desktop
+works, but then DWM can no longer hand a game's buffer straight to scanout and
+presentation drops to Composed: Flip, so that route was removed. Vibrance covers adding
+saturation at no cost on NVIDIA cards; desaturating is no longer offered.
 
 ## Usage
 
@@ -47,7 +52,7 @@ TarkovColorToggle.exe -Uninstall
 - When one fires, it runs a scheduled task which re-checks what is actually running and
   applies the first matching rule, or reverts to default if nothing matches. Because it
   re-checks rather than trusting the event, overlapping applications resolve correctly.
-- The tray app owns the global hotkeys and the saturation effect, and runs unelevated so
+- The tray app owns the global hotkeys and the current state, and runs unelevated so
   the (limited) scheduled task can talk to it.
 
 Two details worth knowing, both of which cost real debugging time to find:
@@ -107,8 +112,7 @@ since low frequencies mask higher ones far more than the reverse.
 
 ## Limitations
 
-- Gamma, contrast and brightness apply to the **primary monitor** only. Saturation is
-  desktop-wide by design and cannot be limited to one screen.
+- Gamma, contrast, brightness and white protection apply to the **primary monitor** only.
 - **HDR**: `SetDeviceGammaRamp` is documented as undefined behaviour in HDR mode, and
   Windows ignores the `vcgt` curve of an ICC profile there too. This tool is for SDR.
 - Changing the watched application list needs administrator rights, because the WMI

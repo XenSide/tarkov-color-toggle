@@ -4,13 +4,13 @@ using System.Runtime.InteropServices;
 namespace TarkovColor
 {
     /// <summary>
-    /// Saturation through NVIDIA's Digital Vibrance Control.
+    /// Adds saturation through NVIDIA's Digital Vibrance Control.
     ///
-    /// Why this exists alongside <see cref="Saturation"/>: the Magnification colour matrix
-    /// applies to the composed desktop, so while it is active DWM cannot hand a game's buffer
-    /// straight to scanout and presentation drops to Composed: Flip. DVC is applied in the
-    /// display pipeline instead, so it costs nothing in presentation - at the price of being
-    /// NVIDIA-only, and of only being able to add saturation, never remove it.
+    /// A gamma ramp is a per-channel 1D LUT and cannot change saturation, which needs
+    /// channel mixing. Doing that on the composed desktop works, but then DWM can no longer
+    /// hand a game's buffer straight to scanout and presentation drops to Composed: Flip -
+    /// which is why that route was removed. DVC runs in the display pipeline instead and
+    /// costs nothing, at the price of being NVIDIA-only and unable to desaturate.
     ///
     /// NVAPI exposes nothing but nvapi_QueryInterface; everything else is looked up by numeric
     /// id. The ids for Initialize, Unload and GetAssociatedNvidiaDisplayHandle come from

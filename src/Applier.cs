@@ -7,11 +7,10 @@ namespace TarkovColor
     /// <summary>
     /// Applies a profile end to end.
     ///
-    /// Gamma/contrast/brightness go into the GPU gamma ramp, which persists after the
-    /// setting process exits. Saturation goes through the Magnification colour matrix,
-    /// which only lives as long as the process that set it - so when the tray app is
-    /// running, one-shot invocations hand the work over to it instead of doing it
-    /// themselves. Without the tray, everything except saturation still applies.
+    /// Every effect here outlives the process that set it: the tonal curve lives in the
+    /// GPU gamma ramp, vibrance in the display pipeline, the EQ in a file. One-shot
+    /// invocations still hand off to the tray when it is running, so that a single place
+    /// owns the current state, but nothing breaks when they apply it themselves.
     /// </summary>
     public static class Applier
     {
@@ -43,22 +42,19 @@ namespace TarkovColor
             return FindTrayWindow() != IntPtr.Zero;
         }
 
-        /// <summary>Applies locally: gamma ramp always, saturation only if this process will stay alive.</summary>
-        public static void ApplyLocal(Profile p, bool includeSaturation)
+        /// <summary>Applies a profile, or resets everything when given null.</summary>
+        public static void ApplyLocal(Profile p)
         {
             if (p == null)
             {
                 Ramp.Reset();
-                if (includeSaturation) Saturation.Reset();
                 Vibrance.Reset();
-                // Unlike saturation, the EQ lives in a file, so it survives this process exiting.
                 AudioProfile.Apply(null);
-                Config.Log("Applied: (default)" + (includeSaturation ? " +saturation" : ""));
+                Config.Log("Applied: (default)");
                 return;
             }
 
             Ramp.Apply(p);
-            if (includeSaturation) Saturation.Apply(p.Saturation);
             Vibrance.SetLevel(p.Vibrance);
             AudioProfile.Apply(p);
             Config.Log("Applied: " + p.Name
@@ -66,14 +62,14 @@ namespace TarkovColor
                 + " gamma=" + p.Gamma.ToString("0.00")
                 + " contrast=" + p.Contrast.ToString("0.00")
                 + " brightness=" + p.Brightness.ToString("0.00")
-                + " saturation=" + p.Saturation.ToString("0.00")
-                + (includeSaturation ? "" : " (saturation skipped: tray not running)"));
+                + " vibrance=" + p.Vibrance
+                + " highlights=" + p.WhiteProtectionStrength);
         }
 
         /// <summary>
         /// Entry point for one-shot invocations (-On / -Off / -Apply). Hands off to the tray
-        /// app when it is running so saturation sticks; otherwise applies what it can.
-        /// Returns true if saturation was covered.
+        /// when it is running so one process owns the state; otherwise applies it directly.
+        /// Returns true if the tray took it.
         /// </summary>
         public static bool Request(string profileName)
         {
@@ -82,7 +78,7 @@ namespace TarkovColor
 
             Config cfg = Config.Load();
             Profile p = string.IsNullOrEmpty(profileName) ? null : cfg.Find(profileName);
-            ApplyLocal(p, false);
+            ApplyLocal(p);
             return false;
         }
 

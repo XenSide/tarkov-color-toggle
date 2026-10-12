@@ -8,8 +8,8 @@ using System.Windows.Forms;
 namespace TarkovColor
 {
     /// <summary>
-    /// Resident tray process. Owns the global hotkeys and the saturation effect
-    /// (which only survives while its owning process is alive).
+    /// Resident tray process. Owns the global hotkeys, the live-update watchers
+    /// and the settings window.
     /// </summary>
     public class TrayApp : Form
     {
@@ -67,8 +67,6 @@ namespace TarkovColor
             };
             _icon.MouseUp += OnIconMouseUp;
 
-            // Deliberately not initialising the saturation path here: engaging it costs
-            // hardware presentation, so it is left untouched until a profile asks for it.
             RegisterHotkeys();
             CaptureBaselineIfSafe();
             ReapplyActive();
@@ -204,7 +202,7 @@ namespace TarkovColor
             {
                 string name = Applier.DecodeCopyData(m.LParam);
                 Profile p = string.IsNullOrEmpty(name) ? null : _config.Find(name);
-                try { Applier.ApplyLocal(p, true); }
+                try { Applier.ApplyLocal(p); }
                 catch (Exception ex) { Config.Log("ERROR applying '" + name + "': " + ex.Message); }
                 m.Result = (IntPtr)1;
                 return;
@@ -219,7 +217,7 @@ namespace TarkovColor
         {
             try
             {
-                Applier.ApplyLocal(p, true);
+                Applier.ApplyLocal(p);
                 _icon.Text = p == null ? "Display Profile Switcher" : "Display Profile Switcher - " + p.Name;
             }
             catch (Exception ex)
@@ -244,7 +242,7 @@ namespace TarkovColor
                 Profile byRule = _config.ResolveActiveRule();
                 if (byRule != null)
                 {
-                    Applier.ApplyLocal(byRule, true);
+                    Applier.ApplyLocal(byRule);
                     return;
                 }
 
@@ -256,12 +254,12 @@ namespace TarkovColor
                 if (IsRuleDriven(stored))
                 {
                     Config.Log("Discarded stale profile '" + stored + "': its application is not running.");
-                    Applier.ApplyLocal(null, true);
+                    Applier.ApplyLocal(null);
                     return;
                 }
 
                 Profile manual = _config.Find(stored);
-                if (manual != null) Applier.ApplyLocal(manual, true);
+                if (manual != null) Applier.ApplyLocal(manual);
             }
             catch (Exception ex)
             {
@@ -452,7 +450,6 @@ namespace TarkovColor
         private void ExitApp()
         {
             UnregisterHotkeys();
-            Saturation.Shutdown();
             _icon.Visible = false;
             Application.Exit();
         }
