@@ -4,3 +4,6 @@ profiles.json
 state.txt
 
 *.pdb
+
+# Built by build.cmd; shipped in GitHub releases, not in the repo
+TarkovColorToggle.exe

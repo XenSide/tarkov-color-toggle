@@ -6,7 +6,6 @@
       "Gamma": 1.0,
       "Contrast": 1.0,
       "Brightness": 0.0,
-      "Saturation": 1.0,
       "HotkeyModifiers": 3,
       "HotkeyKey": 112,
       "AudioFile": "tarkov-full.txt"

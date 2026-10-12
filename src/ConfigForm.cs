@@ -26,8 +26,9 @@ namespace TarkovColor
         private TextBox _txtName, _txtHotkey, _txtResetHotkey;
         private ComboBox _cmbIcc, _cmbAudio;
         private Label _lblAudioNote;
-        private TrackBar _tbGamma, _tbContrast, _tbBrightness, _tbSaturation, _tbVibrance;
-        private Label _lblGamma, _lblContrast, _lblBrightness, _lblSaturation, _lblVibrance, _lblVibranceNote;
+        private TrackBar _tbGamma, _tbContrast, _tbBrightness, _tbVibrance, _tbHighlights, _tbKnee;
+        private Panel _curve;
+        private Label _lblGamma, _lblContrast, _lblBrightness, _lblVibrance, _lblVibranceNote, _lblHighlights, _lblKnee;
 
         public ConfigForm(Config source)
         {
@@ -79,7 +80,7 @@ namespace TarkovColor
             MaximizeBox = false;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(660, 604);
+            ClientSize = new Size(660, 768);
             Font = SystemFonts.MessageBoxFont;
 
             // --- left: profile list ---
@@ -155,7 +156,8 @@ namespace TarkovColor
             _tbGamma = MakeSlider(x, ref y, "Gamma", 30, 300, out _lblGamma);
             _tbContrast = MakeSlider(x, ref y, "Contrast", 50, 300, out _lblContrast);
             _tbBrightness = MakeSlider(x, ref y, "Brightness", -50, 50, out _lblBrightness);
-            _tbSaturation = MakeSlider(x, ref y, "Saturation", 0, 300, out _lblSaturation);
+            _tbHighlights = MakeSlider(x, ref y, "White protection", 0, 100, out _lblHighlights);
+            _tbKnee = MakeSlider(x, ref y, "Protection knee", 0, 90, out _lblKnee);
             _tbVibrance = MakeSlider(x, ref y, "Vibrance", Vibrance.MinLevel, Vibrance.MaxLevel, out _lblVibrance);
 
             _lblVibranceNote = MakeLabel("", x + 76, y, 380);
@@ -189,19 +191,36 @@ namespace TarkovColor
             {
                 if (Current == null) return;
                 Current.Gamma = 1.0; Current.Contrast = 1.0;
-                Current.Brightness = 0.0; Current.Saturation = 1.0; Current.Vibrance = 0;
+                Current.Brightness = 0.0; Current.Vibrance = 0;
+                Current.WhiteProtectionStrength = 100; Current.WhiteProtectionKnee = 0;
                 LoadCurrentIntoControls();
                 Preview();
             };
             y += 40;
 
             // --- bottom: global settings ---
+            // A picture of the resulting ramp: which part of the range is being moved, and
+            // by how much, is far easier to judge here than from four separate numbers.
+            _curve = new Panel();
+            _curve.SetBounds(x, 400, 118, 118);
+            _curve.BackColor = SystemColors.Window;
+            _curve.BorderStyle = BorderStyle.FixedSingle;
+            _curve.Paint += OnCurvePaint;
+            Controls.Add(_curve);
+
+            Label curveNote = MakeLabel(
+                "Response curve. The dotted line is untouched input; the gap between them\n"
+                + "is the change. The tick marks where white protection starts.",
+                x + 128, 406, 300);
+            curveNote.Height = 34;
+            curveNote.ForeColor = SystemColors.GrayText;
+
             Panel divider = new Panel();
-            divider.SetBounds(12, 370, 636, 1);
+            divider.SetBounds(12, 534, 636, 1);
             divider.BackColor = SystemColors.ControlDark;
             Controls.Add(divider);
 
-            Label rulesCaption = MakeLabel("Apply a profile automatically while these applications run", 12, 378, 400);
+            Label rulesCaption = MakeLabel("Apply a profile automatically while these applications run", 12, 542, 400);
             rulesCaption.Font = new Font(Font, FontStyle.Bold);
 
             _rules = new ListView();
@@ -209,33 +228,33 @@ namespace TarkovColor
             _rules.FullRowSelect = true;
             _rules.MultiSelect = false;
             _rules.HideSelection = false;
-            _rules.SetBounds(12, 400, 476, 104);
+            _rules.SetBounds(12, 564, 476, 104);
             _rules.Columns.Add("Application", 230);
             _rules.Columns.Add("Profile", 222);
             _rules.DoubleClick += delegate { EditRule(); };
             Controls.Add(_rules);
 
-            _btnRuleAdd = MakeButton("Add...", 496, 400, 90);
+            _btnRuleAdd = MakeButton("Add...", 496, 564, 90);
             _btnRuleAdd.Click += delegate { AddRule(); };
-            _btnRuleEdit = MakeButton("Edit...", 496, 432, 90);
+            _btnRuleEdit = MakeButton("Edit...", 496, 596, 90);
             _btnRuleEdit.Click += delegate { EditRule(); };
-            _btnRuleDel = MakeButton("Remove", 496, 464, 90);
+            _btnRuleDel = MakeButton("Remove", 496, 628, 90);
             _btnRuleDel.Click += delegate { RemoveRule(); };
 
             Panel divider2 = new Panel();
-            divider2.SetBounds(12, 518, 636, 1);
+            divider2.SetBounds(12, 682, 636, 1);
             divider2.BackColor = SystemColors.ControlDark;
             Controls.Add(divider2);
 
-            Controls.Add(MakeLabel("Reset hotkey", 12, 532, 80));
+            Controls.Add(MakeLabel("Reset hotkey", 12, 696, 80));
             _txtResetHotkey = new TextBox();
-            _txtResetHotkey.SetBounds(94, 529, 110, 22);
+            _txtResetHotkey.SetBounds(94, 693, 110, 22);
             _txtResetHotkey.ReadOnly = true;
             _txtResetHotkey.BackColor = SystemColors.Window;
             _txtResetHotkey.KeyDown += OnResetHotkeyKeyDown;
             Controls.Add(_txtResetHotkey);
 
-            _btnClearReset = MakeButton("X", 210, 528, 28);
+            _btnClearReset = MakeButton("X", 210, 692, 28);
             _btnClearReset.Click += delegate
             {
                 _config.ResetHotkeyModifiers = 0;
@@ -244,16 +263,16 @@ namespace TarkovColor
             };
 
             Label hint = MakeLabel(
-                "Changes preview live on the primary monitor. Saturation needs the tray running,\n"
-                + "and costs hardware presentation in games. Leave it at 1.00 unless you want it.",
-                12, 556, 440);
+                "Changes preview live on the primary monitor. Everything here is applied by\n"
+                + "the display hardware, so none of it costs presentation performance in games.",
+                12, 720, 440);
             hint.Height = 42;
             hint.ForeColor = SystemColors.GrayText;
             Controls.Add(hint);
 
-            Button ok = MakeButton("OK", 466, 560, 88);
+            Button ok = MakeButton("OK", 466, 724, 88);
             ok.Click += delegate { OnOk(); };
-            Button cancel = MakeButton("Cancel", 560, 560, 88);
+            Button cancel = MakeButton("Cancel", 560, 724, 88);
             cancel.Click += delegate { DialogResult = DialogResult.Cancel; Close(); };
             AcceptButton = ok;
             CancelButton = cancel;
@@ -264,6 +283,71 @@ namespace TarkovColor
             RulesChanged = DescribeRules(_config) != _originalRules;
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+
+        private void OnCurvePaint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            int w = _curve.ClientSize.Width - 1;
+            int h = _curve.ClientSize.Height - 1;
+
+            using (Pen grid = new Pen(Color.FromArgb(40, SystemColors.GrayText)))
+            {
+                for (int q = 1; q < 4; q++)
+                {
+                    int gx = w * q / 4, gy = h * q / 4;
+                    g.DrawLine(grid, gx, 0, gx, h);
+                    g.DrawLine(grid, 0, gy, w, gy);
+                }
+            }
+
+            using (Pen id = new Pen(SystemColors.GrayText))
+            {
+                id.DashStyle = System.Drawing.Drawing2D.DashStyle.Dot;
+                g.DrawLine(id, 0, h, w, 0);
+            }
+
+            Profile p = Current;
+            if (p == null) return;
+
+            ushort[] ramp;
+            try { ramp = Ramp.Build(p); }
+            catch { return; }
+
+            Point[] pts = new Point[w + 1];
+            for (int px = 0; px <= w; px++)
+            {
+                int i = px * 255 / w;
+                double v = ramp[i] / 65535.0;
+                pts[px] = new Point(px, (int)Math.Round(h - v * h));
+            }
+            using (Pen curve = new Pen(Color.FromArgb(60, 140, 255), 2f))
+                g.DrawLines(curve, pts);
+
+            // Where the shoulder begins, in input terms: the first sample whose output has
+            // been pulled below what it would have been without it.
+            if (p.WhiteProtectionStrength > 0)
+            {
+                Profile bare = p.Clone();
+                bare.WhiteProtectionStrength = 0;
+                ushort[] flat;
+                try { flat = Ramp.Build(bare); }
+                catch { return; }
+
+                for (int i = 0; i < 256; i++)
+                {
+                    if (flat[i] - ramp[i] > 400)
+                    {
+                        int px = i * w / 255;
+                        using (Pen tick = new Pen(Color.FromArgb(255, 140, 60), 1.5f))
+                            g.DrawLine(tick, px, h, px, h - 10);
+                        break;
+                    }
+                }
+            }
         }
 
         private Button MakeButton(string text, int x, int y, int w)
@@ -287,7 +371,7 @@ namespace TarkovColor
 
         private TrackBar MakeSlider(int x, ref int y, string caption, int min, int max, out Label valueLabel)
         {
-            Controls.Add(MakeLabel(caption, x, y + 4, 70));
+            Controls.Add(MakeLabel(caption, x, y + 4, 132));
 
             TrackBar tb = new TrackBar();
             // TrackBar auto-sizes to a taller default and would overlap the row below.
@@ -295,7 +379,7 @@ namespace TarkovColor
             tb.Minimum = min;
             tb.Maximum = max;
             tb.TickStyle = TickStyle.None;
-            tb.SetBounds(x + 76, y, 290, 28);
+            tb.SetBounds(x + 138, y, 228, 28);
             Controls.Add(tb);
 
             valueLabel = MakeLabel("", x + 372, y + 6, 60);
@@ -520,7 +604,8 @@ namespace TarkovColor
             _tbGamma.Enabled = has;
             _tbContrast.Enabled = has;
             _tbBrightness.Enabled = has;
-            _tbSaturation.Enabled = has;
+            _tbHighlights.Enabled = has;
+            _tbKnee.Enabled = has;
             _tbVibrance.Enabled = has && Vibrance.IsAvailable;
             _txtHotkey.Enabled = has;
             _btnClearHotkey.Enabled = has;
@@ -544,7 +629,8 @@ namespace TarkovColor
             _tbGamma.Value = ClampInt((int)Math.Round(p.Gamma * 100), _tbGamma.Minimum, _tbGamma.Maximum);
             _tbContrast.Value = ClampInt((int)Math.Round(p.Contrast * 100), _tbContrast.Minimum, _tbContrast.Maximum);
             _tbBrightness.Value = ClampInt((int)Math.Round(p.Brightness * 100), _tbBrightness.Minimum, _tbBrightness.Maximum);
-            _tbSaturation.Value = ClampInt((int)Math.Round(p.Saturation * 100), _tbSaturation.Minimum, _tbSaturation.Maximum);
+            _tbHighlights.Value = ClampInt(p.WhiteProtectionStrength, _tbHighlights.Minimum, _tbHighlights.Maximum);
+            _tbKnee.Value = ClampInt(p.WhiteProtectionKnee, _tbKnee.Minimum, _tbKnee.Maximum);
             _tbVibrance.Value = ClampInt(p.Vibrance, _tbVibrance.Minimum, _tbVibrance.Maximum);
             _txtHotkey.Text = HotkeyText.Describe(p.HotkeyModifiers, p.HotkeyKey);
             _txtResetHotkey.Text = HotkeyText.Describe(_config.ResetHotkeyModifiers, _config.ResetHotkeyKey);
@@ -565,7 +651,8 @@ namespace TarkovColor
             p.Gamma = _tbGamma.Value / 100.0;
             p.Contrast = _tbContrast.Value / 100.0;
             p.Brightness = _tbBrightness.Value / 100.0;
-            p.Saturation = _tbSaturation.Value / 100.0;
+            p.WhiteProtectionStrength = _tbHighlights.Value;
+            p.WhiteProtectionKnee = _tbKnee.Value;
             p.Vibrance = _tbVibrance.Value;
             UpdateSliderLabels();
             Preview();
@@ -576,7 +663,9 @@ namespace TarkovColor
             _lblGamma.Text = (_tbGamma.Value / 100.0).ToString("0.00");
             _lblContrast.Text = (_tbContrast.Value / 100.0).ToString("0.00");
             _lblBrightness.Text = (_tbBrightness.Value / 100.0).ToString("+0.00;-0.00;0.00");
-            _lblSaturation.Text = (_tbSaturation.Value / 100.0).ToString("0.00");
+            _lblHighlights.Text = _tbHighlights.Value == 0 ? "off" : _tbHighlights.Value + "%";
+            _lblKnee.Text = _tbKnee.Value + "%";
+            if (_curve != null) _curve.Invalidate();
             _lblVibrance.Text = _tbVibrance.Value.ToString();
         }
 
@@ -587,7 +676,6 @@ namespace TarkovColor
             try
             {
                 Ramp.Preview(p);
-                Saturation.Apply(p.Saturation);
                 Vibrance.SetLevel(p.Vibrance);
             }
             catch (Exception ex)

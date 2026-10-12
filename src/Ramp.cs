@@ -171,17 +171,56 @@ namespace TarkovColor
             double gamma = Clamp(p.Gamma, 0.10, 5.0);
             double contrast = Clamp(p.Contrast, 0.10, 5.0);
             double brightness = Clamp(p.Brightness, -1.0, 1.0);
+            int rolloff = (int)Clamp(p.WhiteProtectionStrength, 0, 100);
+
+            // White protection pulls the bright end back towards the untouched input, never
+            // the other way, and only ever acts above the knee - so raising it cannot cost
+            // midtone visibility, which is what the lift was for in the first place.
+            // The weight reaches full strength at white, so white always stays white.
+            //
+            // The knee is a position in the OUTPUT, not the input. Anchoring it to the input
+            // would make it drift as gamma rises: at gamma 3 an input of 0.5 already leaves
+            // the screen at 0.79, so the same knee would sit somewhere quite different to the
+            // eye. Keying on how bright the pixel actually ends up keeps it where you put it.
+            double knee = Clamp(p.WhiteProtectionKnee, 0, 90) / 100.0;
+            double strength = rolloff / 100.0;
+
+            // Brightest value the tonal controls can produce, i.e. the output at full input.
+            double peak = Clamp(0.5 * contrast + 0.5 + brightness, 0.0, 4.0);
+            double span = peak - knee;
 
             ushort[] ramp = new ushort[768];
             for (int c = 0; c < 3; c++)
             {
                 for (int i = 0; i < 256; i++)
                 {
-                    double v = baseCurve[c][i];
+                    double input = baseCurve[c][i];
+
+                    double v = input;
                     if (gamma != 1.0) v = Math.Pow(v, 1.0 / gamma);
                     if (contrast != 1.0) v = (v - 0.5) * contrast + 0.5;
                     if (brightness != 0.0) v = v + brightness;
+
+                    if (strength > 0.0 && span > 0.0 && v > knee)
+                    {
+                        double t = (v - knee) / span;
+                        if (t > 1.0) t = 1.0;
+                        t = t * t * (3.0 - 2.0 * t);      // smoothstep: no visible edge at the join
+                        double w = t * strength;
+                        v = v * (1.0 - w) + input * w;
+                    }
+
                     ramp[c * 256 + i] = (ushort)Math.Round(Clamp(v, 0.0, 1.0) * 65535.0);
+                }
+
+                // A transfer curve has to be monotonic. With a high knee the weight ramps over
+                // a very short span and can pull the result down faster than the curve climbs,
+                // which shows up as banding and inverted steps in the brightest tones. Rather
+                // than forbid those settings, hold each step at least at the previous one.
+                for (int i = 1; i < 256; i++)
+                {
+                    int here = c * 256 + i;
+                    if (ramp[here] < ramp[here - 1]) ramp[here] = ramp[here - 1];
                 }
             }
             return ramp;
