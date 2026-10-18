@@ -1,3 +1,5 @@
+![Display Profile Switcher](docs/cover.png)
+
 # Display Profile Switcher
 
 Switches your monitor's colour settings automatically when a game launches, and puts
